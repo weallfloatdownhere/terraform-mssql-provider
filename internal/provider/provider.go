@@ -3,8 +3,9 @@ package provider
 import (
     "context"
     "os"
-  
+   
     "github.com/hashicorp-demoapp/hashicups-client-go"
+
     "github.com/hashicorp/terraform-plugin-framework/datasource"
     "github.com/hashicorp/terraform-plugin-framework/path"
     "github.com/hashicorp/terraform-plugin-framework/provider"
@@ -16,94 +17,108 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-    _ provider.Provider = &hashicupsProvider{}
+    _ provider.Provider = &MssqlProvider{}
 )
 
 // New is a helper function to simplify provider server and testing implementation.
 func New(version string) func() provider.Provider {
     return func() provider.Provider {
-        return &hashicupsProvider{
+        return &MssqlProvider{
             version: version,
         }
     }
 }
 
-// hashicupsProvider is the provider implementation.
-type hashicupsProvider struct {
-    // version is set to the provider version on release, "dev" when the
-    // provider is built and ran locally, and "test" when running acceptance
-    // testing.
+// MssqlProvider is the provider implementation.
+type MssqlProvider struct {
     version string
 }
 
-// hashicupsProviderModel maps provider schema data to a Go type.
-type hashicupsProviderModel struct {
-    Host     types.String `tfsdk:"host"`
-    Username types.String `tfsdk:"username"`
-    Password types.String `tfsdk:"password"`
+// MssqlProviderModel maps provider schema data to a Go type.
+type MssqlProviderModel struct {
+	Server   string `tfsdk:"server"`
+	Database string `tfsdk:"database"`
+	Username string `tfsdk:"username"`
+	Password string `tfsdk:"password"`
 }
 
 // Metadata returns the provider type name.
-func (p *hashicupsProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
+func (p *MssqlProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
     resp.TypeName = "hashicups"
     resp.Version = p.version
 }
 
 // Schema defines the provider-level schema for configuration data.
-func (p *hashicupsProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
+func (p *MssqlProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
     resp.Schema = schema.Schema{
         Attributes: map[string]schema.Attribute{
-            "host": schema.StringAttribute{
-                Optional: true,
-            },
-            "username": schema.StringAttribute{
-                Optional: true,
-            },
-            "password": schema.StringAttribute{
-                Optional:  true,
-                Sensitive: true,
-            },
+			"server": schema.StringAttribute{
+				Required:    true,
+				Description: "The Azure MSSQL Server name.",
+			},
+			"database": schema.StringAttribute{
+				Required:    true,
+				Description: "The MSSQL database to connect to.",
+			},
+			"username": schema.StringAttribute{
+				Required:    true,
+				Description: "The database username.",
+			},
+			"password": schema.StringAttribute{
+				Required:    true,
+				Sensitive:   true,
+				Description: "The database password.",
+			},
         },
     }
 }
 
 // Configure prepares a HashiCups API client for data sources and resources.
-func (p *hashicupsProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-    // Retrieve provider data from configuration
-    var config hashicupsProviderModel
-    diags := req.Config.Get(ctx, &config)
-    resp.Diagnostics.Append(diags...)
+func (p *MssqlProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) { 
+    var config MssqlProviderModel
+    
+	diags := req.Config.Get(ctx, &config)
+    
+	resp.Diagnostics.Append(diags...)
+
     if resp.Diagnostics.HasError() {
         return
     }
 
-    // If practitioner provided a configuration value for any of the
-    // attributes, it must be a known value.
-
-    if config.Host.IsUnknown() {
+    if config.Server.IsUnknown() {
         resp.Diagnostics.AddAttributeError(
-            path.Root("host"),
-            "Unknown HashiCups API Host",
-            "The provider cannot create the HashiCups API client as there is an unknown configuration value for the HashiCups API host. "+
-                "Either target apply the source of the value first, set the value statically in the configuration, or use the HASHICUPS_HOST environment variable.",
+            path.Root("server"),
+            "Unknown MSSQL Server",
+            "The provider cannot create the MSSQL API client as there is an unknown configuration value for the MSSQL Server. "+
+                "Either target apply the source of the value first, set the value statically in the configuration, or use the MSSQL_SERVER environment variable.",
         )
     }
+
+    if config.Database.IsUnknown() {
+        resp.Diagnostics.AddAttributeError(
+            path.Root("database"),
+            "Unknown MSSQL Database",
+            "The provider cannot create the MSSQL API client as there is an unknown configuration value for the MSSQL Database. "+
+                "Either target apply the source of the value first, set the value statically in the configuration, or use the MSSQL_DATABASE environment variable.",
+        )
+    }
+
 
     if config.Username.IsUnknown() {
         resp.Diagnostics.AddAttributeError(
             path.Root("username"),
-            "Unknown HashiCups API Username",
-            "The provider cannot create the HashiCups API client as there is an unknown configuration value for the HashiCups API username. "+
-                "Either target apply the source of the value first, set the value statically in the configuration, or use the HASHICUPS_USERNAME environment variable.",
+            "Unknown MSSQL Username",
+            "The provider cannot create the MSSQL API client as there is an unknown configuration value for the MSSQL Username. "+
+                "Either target apply the source of the value first, set the value statically in the configuration, or use the MSSQL_USERNAME environment variable.",
         )
     }
 
     if config.Password.IsUnknown() {
         resp.Diagnostics.AddAttributeError(
             path.Root("password"),
-            "Unknown HashiCups API Password",
-            "The provider cannot create the HashiCups API client as there is an unknown configuration value for the HashiCups API password. "+
-                "Either target apply the source of the value first, set the value statically in the configuration, or use the HASHICUPS_PASSWORD environment variable.",
+            "Unknown MSSQL Password",
+            "The provider cannot create the MSSQL API client as there is an unknown configuration value for the MSSQL Password. "+
+                "Either target apply the source of the value first, set the value statically in the configuration, or use the MSSQL_PASSWORD environment variable.",
         )
     }
 
@@ -114,12 +129,17 @@ func (p *hashicupsProvider) Configure(ctx context.Context, req provider.Configur
     // Default values to environment variables, but override
     // with Terraform configuration value if set.
 
-    host := os.Getenv("HASHICUPS_HOST")
-    username := os.Getenv("HASHICUPS_USERNAME")
-    password := os.Getenv("HASHICUPS_PASSWORD")
+    server   := os.Getenv("MSSQL_SERVER")
+	database := os.Getenv("MSSQL_DATABASE")
+    username := os.Getenv("MSSQL_USERNAME")
+    password := os.Getenv("MSSQL_PASSWORD")
 
-    if !config.Host.IsNull() {
-        host = config.Host.ValueString()
+    if !config.Server.IsNull() {
+        server = config.Server.ValueString()
+    }
+
+	if !config.Database.IsNull() {
+        database = config.Server.ValueString()
     }
 
     if !config.Username.IsNull() {
@@ -133,12 +153,22 @@ func (p *hashicupsProvider) Configure(ctx context.Context, req provider.Configur
     // If any of the expected configurations are missing, return
     // errors with provider-specific guidance.
 
-    if host == "" {
+    if server == "" {
         resp.Diagnostics.AddAttributeError(
-            path.Root("host"),
-            "Missing HashiCups API Host",
-            "The provider cannot create the HashiCups API client as there is a missing or empty value for the HashiCups API host. "+
-                "Set the host value in the configuration or use the HASHICUPS_HOST environment variable. "+
+            path.Root("server"),
+            "Missing MSSQL Server",
+            "The provider cannot create the MSSQL API client as there is a missing or empty value for the MSSQL Server. "+
+                "Set the host value in the configuration or use the MSSQL_SERVER environment variable. "+
+                "If either is already set, ensure the value is not empty.",
+        )
+    }
+
+	if database == "" {
+        resp.Diagnostics.AddAttributeError(
+            path.Root("database"),
+            "Missing MSSQL Server",
+            "The provider cannot create the MSSQL client as there is a missing or empty value for the MSSQL Database. "+
+                "Set the host value in the configuration or use the MSSQL_DATABASE environment variable. "+
                 "If either is already set, ensure the value is not empty.",
         )
     }
@@ -146,9 +176,9 @@ func (p *hashicupsProvider) Configure(ctx context.Context, req provider.Configur
     if username == "" {
         resp.Diagnostics.AddAttributeError(
             path.Root("username"),
-            "Missing HashiCups API Username",
-            "The provider cannot create the HashiCups API client as there is a missing or empty value for the HashiCups API username. "+
-                "Set the username value in the configuration or use the HASHICUPS_USERNAME environment variable. "+
+            "Missing MSSQL Username",
+            "The provider cannot create the MSSQL client as there is a missing or empty value for the MSSQL Username. "+
+                "Set the username value in the configuration or use the MSSQL_USERNAME environment variable. "+
                 "If either is already set, ensure the value is not empty.",
         )
     }
@@ -156,9 +186,9 @@ func (p *hashicupsProvider) Configure(ctx context.Context, req provider.Configur
     if password == "" {
         resp.Diagnostics.AddAttributeError(
             path.Root("password"),
-            "Missing HashiCups API Password",
-            "The provider cannot create the HashiCups API client as there is a missing or empty value for the HashiCups API password. "+
-                "Set the password value in the configuration or use the HASHICUPS_PASSWORD environment variable. "+
+            "Missing MSSQL Password",
+            "The provider cannot create the MSSQL API client as there is a missing or empty value for the MSSQL Password. "+
+                "Set the password value in the configuration or use the MSSQL_PASSWORD environment variable. "+
                 "If either is already set, ensure the value is not empty.",
         )
     }
@@ -168,7 +198,8 @@ func (p *hashicupsProvider) Configure(ctx context.Context, req provider.Configur
     }
 
     // Create a new HashiCups client using the configuration values
-    client, err := hashicups.NewClient(&host, &username, &password)
+    client, err := hashicups.NewClient(&server, &database, &username, &password)
+
     if err != nil {
         resp.Diagnostics.AddError(
             "Unable to Create HashiCups API Client",
@@ -185,13 +216,12 @@ func (p *hashicupsProvider) Configure(ctx context.Context, req provider.Configur
     resp.ResourceData = client
 }
 
-
 // DataSources defines the data sources implemented in the provider.
-func (p *hashicupsProvider) DataSources(_ context.Context) []func() datasource.DataSource {
+func (p *MssqlProvider) DataSources(_ context.Context) []func() datasource.DataSource {
     return nil
 }
 
 // Resources defines the resources implemented in the provider.
-func (p *hashicupsProvider) Resources(_ context.Context) []func() resource.Resource {
+func (p *MssqlProvider) Resources(_ context.Context) []func() resource.Resource {
     return nil
 }
