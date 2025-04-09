@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException
-from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy import create_engine, select, Column, Integer, String, Table, MetaData
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from sqlalchemy.sql import text, quoted_name
 
@@ -41,8 +41,29 @@ def add_user(group_name: str):
         print(f"ERROR {e}")
 
 
+def select_user(group_name: str):
+    db = SessionLocal()
+    metadata = MetaData()
+
+    sql_logins = Table(
+        "sql_logins", metadata,
+        Column("principal_id", Integer),  
+        Column("sid", String),  
+        Column("name", String),  
+        Column("type", String),  
+        Column("is_disabled", Integer),  
+        schema="sys"
+    )
+
+    query = select(sql_logins).where(sql_logins.c.name == "ADSQLGroup3")
+    result = db.execute(query)
+    
+    for row in result:
+        print(row)
+
 USERNAME = "testing1"
-add_user(USERNAME)
+#add_user(USERNAME)
+select_user(USERNAME)
 
 ## User Model
 #class User(Base):
