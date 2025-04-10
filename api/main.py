@@ -1,10 +1,14 @@
+# https://learn.microsoft.com/en-us/sql/relational-databases/security/authentication-access/database-level-roles?view=sql-server-ver16
+
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy import create_engine, select, Column, Integer, String, Table, MetaData
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from sqlalchemy.sql import text, quoted_name
 
-# MSSQL Database Connection Details
-DATABASE_URL = "mssql+pyodbc://@localhost\\SQLEXPRESS/testing?driver=ODBC+Driver+17+for+SQL+Server"
+# MSSQL Server
+SERVER   = "localhost\\SQLEXPRESS"
+# MSSQL Database
+DATABASE = "testing"
 
 # FastAPI App
 # app = FastAPI()
@@ -29,9 +33,9 @@ database_principals = Table(
 )
 
 # Database connection function
-def connect_to_database(CONNECTION_STRING: str):
+def connect_to_database(server: str, database: str):
     # Create the database engine
-    engine = create_engine(CONNECTION_STRING, echo=True)
+    engine = create_engine(f"mssql+pyodbc://@{server}/{database}?driver=ODBC+Driver+17+for+SQL+Server", echo=True)
     # Initialize the Session local
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     # Return the session
@@ -83,6 +87,7 @@ def add_group_to_sql_logins(group_name: str, SessionLocal: Session):
         return 1
 
 # Adding group the the database_principals
+# TODO: CREATE USER GROUPNAME FROM EXTERNAL PROVIDER
 def add_group_to_database_principals(group_name: str, SessionLocal: Session):
     # Check if the group exists in database_principals before adding it
     if group_exists_in_the_database(group_name, SessionLocal) <= 0:
@@ -101,12 +106,23 @@ def add_group_to_database_principals(group_name: str, SessionLocal: Session):
 
 def main():
     # Initialize database session
-    session = connect_to_database(DATABASE_URL)
+    session = connect_to_database(SERVER, DATABASE)
     # Add the group to sql_logins
     add_group_to_sql_logins("ADSQLGroup4", session)
     # Add the group to database_principals
     add_group_to_database_principals("ADSQLGroup4", session)
+    
 
+#SELECT roles.principal_id AS RolePrincipalID,
+#    roles.name AS RolePrincipalName,
+#    database_role_members.member_principal_id AS MemberPrincipalID,
+#    members.name AS MemberPrincipalName
+#FROM sys.database_role_members AS database_role_members
+#INNER JOIN sys.database_principals AS roles
+#    ON database_role_members.role_principal_id = roles.principal_id
+#INNER JOIN sys.database_principals AS members
+#    ON database_role_members.member_principal_id = members.principal_id
+#WHERE members.name = 'testing1' AND roles.name = 'db_accessadmin'
 
 main()
 
