@@ -7,9 +7,7 @@ from sqlalchemy.sql import text, quoted_name
 
 SERVER   = "localhost\\SQLEXPRESS"                                                                                 # MSSQL Server
 DATABASE = "testing"                                                                                               # MSSQL Database
-
-# FastAPI App
-# app = FastAPI()
+app      = FastAPI()                                                                                               # FastAPI App
 
 # TABLES
 sql_logins = Table(
@@ -69,7 +67,7 @@ def is_role_attributed(group_name: str, role_name: str, SessionLocal: Session):
     db      = SessionLocal()                                                                                       # Initialize session
     roles   = alias(database_principals, name="roles")                                                             # Initialize the aliase `roles`
     members = alias(database_principals, name="members")                                                           # Initialize the aliases `members`
-    stmt = (                                                                                                       # Build the query
+    query = (                                                                                                      # Build the query
         select(
             roles.c.principal_id.label("RolePrincipalID"),
             roles.c.name.label("RolePrincipalName"),
@@ -81,7 +79,7 @@ def is_role_attributed(group_name: str, role_name: str, SessionLocal: Session):
         .where(members.c.name == group_name)
         .where(roles.c.name == role_name)
     )
-    result = db.execute(stmt)                                                                                      # Execute the query
+    result = db.execute(query)                                                                                     # Execute the query
     if len(result.all()) > 0:                                                                                      # Return the result the group already exists
         return 1                                                                                                   # Return 1 if the role is already attributed
     else:                                                                                                          # Return 0 the result the role is not already attributed
@@ -139,21 +137,15 @@ def main():                                                                     
     add_group_to_database_principals("ADSQLGroup4", session)                                                       # Add the group to database_principals
     attribute_role_to_group("ADSQLGroup4", "db_accessadmin", session)                                              # Attribute the role
 
-main()                                                                                                             # Starting function
-
 ## Routes
-#@app.post("/add_group")
-#def create_user(group: str, db: Session = Depends(get_db)):
-#    add_user(group, db)
-#
-#@app.post("/users/")
-#def create_user(name: str, email: str, db: Session = Depends(get_db)):
-#    new_user = User(name=name, email=email)
-#    db.add(new_user)
-#    db.commit()
-#    db.refresh(new_user)
-#    return new_user
-#
+#@app.get("/server/{server}/database/{database}/group/{group_name}")
+#def get_group(server: str, database:str, group_name: str):
+#    session = connect_to_database(SERVER, DATABASE)                                                               # Initialize database session
+
+#@app.post("/server/{server}/database/{database}/group/{group_name}")
+#def create_group(server: str, database:str, group_name: str):
+#    session = connect_to_database(server, database)                                                               # Initialize database session
+
 #@app.get("/users/{user_id}")
 #def read_user(user_id: int, db: Session = Depends(get_db)):
 #    user = db.query(User).filter(User.id == user_id).first()
