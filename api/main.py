@@ -3,11 +3,8 @@ from sqlalchemy import create_engine, select, Column, Integer, String, Table, Me
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from sqlalchemy.sql import text, quoted_name
 
-# Create the database engine
-#engine = create_engine(DATABASE_URL, echo=True)
-#
-## Session local
-#SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# MSSQL Database Connection Details
+DATABASE_URL = "mssql+pyodbc://@localhost\\SQLEXPRESS/testing?driver=ODBC+Driver+17+for+SQL+Server"
 
 # FastAPI App
 # app = FastAPI()
@@ -39,17 +36,6 @@ def connect_to_database(CONNECTION_STRING: str):
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     # Return the session
     return SessionLocal
-
-def get_db():
-    # Create the database engine
-    engine = create_engine(DATABASE_URL, echo=True)
-    # Session local
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 # Group exists function in sys.sql_logins
 def group_exists_in_sql_logins(group_name: str, SessionLocal: Session):
@@ -83,14 +69,30 @@ def group_exists_in_the_database(group_name: str, SessionLocal: Session):
         print("DOES NOT EXISTS IN sys.database_principals") # the group doesnt exists
         return 0
 
+# Adding group the the sql_logins
+def add_group_to_sql_logins(group_name: str, SessionLocal: Session):
+    if group_exists_in_sql_logins(group_name, SessionLocal) > 0:
+        # Initialize session
+        db = SessionLocal()
+        # Add the user to the sql_logins
+        try:
+            db.execute(text(f"CREATE LOGIN {quoted_name(group_name, False)} WITH PASSWORD = '{group_name}'"))                       
+            db.commit()
+        except Exception as e:
+            db.close()
+            print(f"ERROR {e}")
 
-# MSSQL Database Connection Details
-DATABASE_URL = "mssql+pyodbc://@localhost\\SQLEXPRESS/testing?driver=ODBC+Driver+17+for+SQL+Server"
 
+
+# Initialize database session
 session = connect_to_database(DATABASE_URL)
 
+# Check if group exists in the sql_logins
 group_exists_in_sql_logins("ADSQLGroup4", session)
+
+# Check if the group exists in the target database
 group_exists_in_the_database("ADSQLGroup4", session)
+
 
 # Dependency to get DB session
 #def get_db():
