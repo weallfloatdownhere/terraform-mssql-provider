@@ -5,8 +5,8 @@ from sqlalchemy import create_engine, select, Column, Integer, String, Table, Me
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from sqlalchemy.sql import text, quoted_name
 
-SERVER   = "localhost\\SQLEXPRESS" # MSSQL Server
-DATABASE = "testing"               # MSSQL Database
+SERVER   = "localhost\\SQLEXPRESS"                                                                                 # MSSQL Server
+DATABASE = "testing"                                                                                               # MSSQL Database
 
 # FastAPI App
 # app = FastAPI()
@@ -49,7 +49,7 @@ def is_group_exists_in_sql_logins(group_name: str, SessionLocal: Session):
     db = SessionLocal()                                                                                            # Initialize session
     query = select(sql_logins).where(sql_logins.c.name == group_name)                                              # Query to select the group in the sql_logins table
     result = db.execute(query)                                                                                     # Execute the query
-    if len(result.all()) >= 0:                                                                                     # Return the result the group already exists
+    if len(result.all()) > 0:                                                                                      # Return the result the group already exists
         return 1
     else:                                                                                                          # Return the result the group doesnt exists
         return 0
@@ -59,7 +59,7 @@ def is_group_exists_in_the_database_principals(group_name: str, SessionLocal: Se
     db = SessionLocal()                                                                                            # Initialize session
     query = select(database_principals).where(database_principals.c.name == group_name)                            # Query to select the group in the sql_logins table
     result = db.execute(query)                                                                                     # Execute the query
-    if len(result.all()) >= 0:                                                                                     # Return the result the group already exists
+    if len(result.all()) > 0:                                                                                      # Return the result the group already exists
         return 1                                                                                                   # Return 1 if it already exists
     else:                                                                                                          # Return the result the group doesnt exists
         return 0                                                                                                   # Return 0 if it does not already exists
@@ -82,7 +82,7 @@ def is_role_attributed(group_name: str, role_name: str, SessionLocal: Session):
         .where(roles.c.name == role_name)
     )
     result = db.execute(stmt)                                                                                      # Execute the query
-    if len(result.all()) >= 0:                                                                                     # Return the result the group already exists
+    if len(result.all()) > 0:                                                                                      # Return the result the group already exists
         return 1                                                                                                   # Return 1 if the role is already attributed
     else:                                                                                                          # Return 0 the result the role is not already attributed
         return 0
@@ -118,15 +118,28 @@ def add_group_to_database_principals(group_name: str, SessionLocal: Session):
     else:
         return 1
     
+# Attribute role to the group
+def attribute_role_to_group(group_name: str, role_name: str, SessionLocal: Session):           
+    if is_role_attributed(group_name, role_name, SessionLocal) <= 0:                                               # Check if the role is already attributed
+        db = SessionLocal()                                                                                        # Initialize session
+        try:                                                                                                       # Try to attribute the role
+            db.execute(text(f"ALTER ROLE {role_name} ADD MEMBER {group_name}"))                                    # Execute the query                         
+            db.commit()                                                                                            # Commit to database  
+            return 0                                                                                               # return 0 if the query as been succesfull
+        except Exception as e:
+            db.close()                                                                                             # Close the database connection i case of error
+            print(f"ERROR {e}")                                                                                    # Print the error
+            return 1                                                                                               # return 1 if the query as not been succesfull
+    else:
+        return 1
 
 def main():                                                                                                        # Entrypoint function
     session = connect_to_database(SERVER, DATABASE)                                                                # Initialize database session
     add_group_to_sql_logins("ADSQLGroup4", session)                                                                # Add the group to sql_logins
     add_group_to_database_principals("ADSQLGroup4", session)                                                       # Add the group to database_principals
-    is_role_attributed("ADSQLGroup4", "db_accessadmin", session)                                                   # Attribute the role
+    attribute_role_to_group("ADSQLGroup4", "db_accessadmin", session)                                              # Attribute the role
 
-# Starting function
-main()
+main()                                                                                                             # Starting function
 
 ## Routes
 #@app.post("/add_group")
