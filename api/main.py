@@ -46,11 +46,9 @@ def group_exists_in_sql_logins(group_name: str, SessionLocal: Session):
     # Execute the query
     result = db.execute(query)
     # Return the result
-    if len(result.all()) == 1:                     # the group already exists
-        print("EXISTS IN sys.sql_logins")
+    if len(result.all()) > 0: # the group already exists
         return 1
-    else:
-        print("DOES NOT EXISTS IN sys.sql_logins") # the group doesnt exists
+    else: # the group doesnt exists
         return 0
 
 # Group exists function in sys.database_principals
@@ -62,73 +60,56 @@ def group_exists_in_the_database(group_name: str, SessionLocal: Session):
     # Execute the query
     result = db.execute(query)
     # Return the result
-    if len(result.all()) == 1:                              # the group already exists
-        print("EXISTS IN sys.database_principals")
+    if len(result.all()) == 1: # the group already exists
         return 1
-    else:
-        print("DOES NOT EXISTS IN sys.database_principals") # the group doesnt exists
+    else: # the group doesnt exists
         return 0
 
 # Adding group the the sql_logins
 def add_group_to_sql_logins(group_name: str, SessionLocal: Session):
-    if group_exists_in_sql_logins(group_name, SessionLocal) > 0:
+    # Check if the group exists in sql_logins before adding it
+    if group_exists_in_sql_logins(group_name, SessionLocal) <= 0:
         # Initialize session
         db = SessionLocal()
         # Add the user to the sql_logins
         try:
             db.execute(text(f"CREATE LOGIN {quoted_name(group_name, False)} WITH PASSWORD = '{group_name}'"))                       
             db.commit()
+            return 0
         except Exception as e:
             db.close()
             print(f"ERROR {e}")
+    else:
+        return 1
+
+# Adding group the the database_principals
+def add_group_to_database_principals(group_name: str, SessionLocal: Session):
+    # Check if the group exists in database_principals before adding it
+    if group_exists_in_the_database(group_name, SessionLocal) <= 0:
+        # Initialize session
+        db = SessionLocal()
+        # Add the user to the sql_logins
+        try:
+            db.execute(text(f"CREATE USER {quoted_name(group_name, False)} FOR LOGIN {group_name}"))                          
+            db.commit()
+            return 0
+        except Exception as e:
+            db.close()
+            print(f"ERROR {e}")
+    else:
+        return 1
+
+def main():
+    # Initialize database session
+    session = connect_to_database(DATABASE_URL)
+    # Add the group to sql_logins
+    add_group_to_sql_logins("ADSQLGroup4", session)
+    # Add the group to database_principals
+    add_group_to_database_principals("ADSQLGroup4", session)
 
 
+main()
 
-# Initialize database session
-session = connect_to_database(DATABASE_URL)
-
-# Check if group exists in the sql_logins
-group_exists_in_sql_logins("ADSQLGroup4", session)
-
-# Check if the group exists in the target database
-group_exists_in_the_database("ADSQLGroup4", session)
-
-
-# Dependency to get DB session
-#def get_db():
-#    db = SessionLocal()
-#    try:
-#        yield db
-#    finally:
-#        db.close()
-#
-#def add_user(group_name: str):
-#    db = SessionLocal()
-#    try:
-#        db.execute(text(f"CREATE LOGIN {quoted_name(group_name, False)} WITH PASSWORD = '{group_name}'"))                       
-#        db.commit()
-#    except Exception as e:
-#        print(f"ERROR {e}")
-#    
-#    try:
-#        db.execute(text(f"CREATE USER {quoted_name(group_name, False)} FOR LOGIN {group_name}"))                        
-#        db.commit()
-#    except Exception as e:
-#        print(f"ERROR {e}")
-
-
-## User Model
-#class User(Base):
-#    __tablename__ = "users"
-#    
-#    id = Column(Integer, primary_key=True, index=True)
-#    name = Column(String)
-#    email = Column(String)
-#
-#
-## Create database tables
-#Base.metadata.create_all(bind=engine)
-#
 ## Routes
 #@app.post("/add_group")
 #def create_user(group: str, db: Session = Depends(get_db)):
