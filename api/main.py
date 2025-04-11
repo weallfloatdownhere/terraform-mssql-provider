@@ -132,7 +132,7 @@ def add_role_to_group(group_name: str, role_name: str, SessionLocal: Session):
         return 1
 
 # Unattribute role from the group (DELETE)
-def delete_role_to_group(group_name: str, role_name: str, SessionLocal: Session):           
+def delete_role_from_group(group_name: str, role_name: str, SessionLocal: Session):           
     if is_role_attributed(group_name, role_name, SessionLocal) > 0:                                                # Check if the role is already attributed
         db = SessionLocal()                                                                                        # Initialize session
         try:                                                                                                       # Try to attribute the role
@@ -162,12 +162,21 @@ def delete_group_from_database_principals(group_name: str, SessionLocal: Session
     else:
         return 1
 
+ADDING = True
+DELETE = False
+
 def main():                                                                                                        # Entrypoint function
     session = connect_to_database(SERVER, DATABASE)                                                                # Initialize database session
-    add_group_to_sql_logins("ADSQLGroup4", session)                                                                # Add the group to sql_logins
-    add_group_to_database_principals("ADSQLGroup4", session)                                                       # Add the group to database_principals
-    add_role_to_group("ADSQLGroup4", "db_accessadmin", session)                                                    # Attribute the role
+    if ADDING:
+        add_group_to_sql_logins("ADSQLGroup4", session)                                                            # Add the group to sql_logins
+        add_group_to_database_principals("ADSQLGroup4", session)                                                   # Add the group to database_principals
+        add_role_to_group("ADSQLGroup4", "db_accessadmin", session)                                                # Attribute the role
 
+    if DELETE:
+        delete_role_from_group("ADSQLGroup4", "db_accessadmin", session)
+        delete_group_from_database_principals("ADSQLGroup4", session)
+
+main()
 
 ## Routes
 #@app.get("/server/{server}/database/{database}/group/{group_name}")
