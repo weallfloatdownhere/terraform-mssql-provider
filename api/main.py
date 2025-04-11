@@ -116,8 +116,8 @@ def add_group_to_database_principals(group_name: str, SessionLocal: Session):
     else:
         return 1
     
-# Attribute role to the group
-def attribute_role_to_group(group_name: str, role_name: str, SessionLocal: Session):           
+# Attribute role to the group (PUT)
+def add_role_to_group(group_name: str, role_name: str, SessionLocal: Session):           
     if is_role_attributed(group_name, role_name, SessionLocal) <= 0:                                               # Check if the role is already attributed
         db = SessionLocal()                                                                                        # Initialize session
         try:                                                                                                       # Try to attribute the role
@@ -131,11 +131,27 @@ def attribute_role_to_group(group_name: str, role_name: str, SessionLocal: Sessi
     else:
         return 1
 
+# Unattribute role from the group (DELETE)
+def delete_role_to_group(group_name: str, role_name: str, SessionLocal: Session):           
+    if is_role_attributed(group_name, role_name, SessionLocal) > 0:                                                # Check if the role is already attributed
+        db = SessionLocal()                                                                                        # Initialize session
+        try:                                                                                                       # Try to attribute the role
+            db.execute(text(f"ALTER ROLE {role_name} DROP MEMBER {group_name}"))                                   # Execute the query                         
+            db.commit()                                                                                            # Commit to database  
+            return 0                                                                                               # return 0 if the query as been succesfull
+        except Exception as e:
+            db.close()                                                                                             # Close the database connection i case of error
+            print(f"ERROR {e}")                                                                                    # Print the error
+            return 1                                                                                               # return 1 if the query as not been succesfull
+    else:
+        return 1
+
 def main():                                                                                                        # Entrypoint function
     session = connect_to_database(SERVER, DATABASE)                                                                # Initialize database session
     add_group_to_sql_logins("ADSQLGroup4", session)                                                                # Add the group to sql_logins
     add_group_to_database_principals("ADSQLGroup4", session)                                                       # Add the group to database_principals
-    attribute_role_to_group("ADSQLGroup4", "db_accessadmin", session)                                              # Attribute the role
+    add_role_to_group("ADSQLGroup4", "db_accessadmin", session)                                                    # Attribute the role
+
 
 ## Routes
 #@app.get("/server/{server}/database/{database}/group/{group_name}")
