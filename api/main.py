@@ -162,9 +162,9 @@ def delete_group_from_database_principals(group_name: str, SessionLocal: Session
     else:
         return 1
 
-IS_TEST = True
-ADDING  = False
-DELETE  = False
+IS_TEST = True                                                                                                     # Specify if its a test
+ADDING  = False                                                                                                    # Specify if we adding group and role
+DELETE  = False                                                                                                    # Specify if we deleting group and role
 
 def test():                                                                                                        # Entrypoint function
     session = connect_to_database(SERVER, DATABASE)                                                                # Initialize database session
