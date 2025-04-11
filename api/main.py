@@ -153,7 +153,7 @@ def delete_group_from_database_principals(group_name: str, SessionLocal: Session
         db = SessionLocal()                                                                                        # Initialize session
         try:                                                                                                       # Try to add the user to the sql_logins
             db.execute(text(f"DROP USER {quoted_name(group_name, False)}"))                                        # Execute the query                         
-            db.commit()                                                                                            # Commit to database  
+            db.commit()                                                                                            # Commit to database
             return 0                                                                                               # return 0 if the query as been succesfull
         except Exception as e:
             db.close()                                                                                             # Close the database connection i case of error
@@ -162,21 +162,22 @@ def delete_group_from_database_principals(group_name: str, SessionLocal: Session
     else:
         return 1
 
-ADDING = True
-DELETE = False
+IS_TEST = True
+ADDING  = False
+DELETE  = False
 
-def main():                                                                                                        # Entrypoint function
+def test():                                                                                                        # Entrypoint function
     session = connect_to_database(SERVER, DATABASE)                                                                # Initialize database session
     if ADDING:
         add_group_to_sql_logins("ADSQLGroup4", session)                                                            # Add the group to sql_logins
         add_group_to_database_principals("ADSQLGroup4", session)                                                   # Add the group to database_principals
         add_role_to_group("ADSQLGroup4", "db_accessadmin", session)                                                # Attribute the role
-
     if DELETE:
-        delete_role_from_group("ADSQLGroup4", "db_accessadmin", session)
-        delete_group_from_database_principals("ADSQLGroup4", session)
+        delete_role_from_group("ADSQLGroup4", "db_accessadmin", session)                                           # Remove the role from the group
+        delete_group_from_database_principals("ADSQLGroup4", session)                                              # Delete the group from the MSSQL
 
-main()
+if IS_TEST:
+    test()
 
 ## Routes
 #@app.get("/server/{server}/database/{database}/group/{group_name}")
