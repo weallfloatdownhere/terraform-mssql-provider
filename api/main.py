@@ -146,6 +146,22 @@ def delete_role_to_group(group_name: str, role_name: str, SessionLocal: Session)
     else:
         return 1
 
+# Adding group the the database_principals
+# TODO: DELETE USER GROUPNAME FROM EXTERNAL PROVIDER
+def delete_group_from_database_principals(group_name: str, SessionLocal: Session):           
+    if is_group_exists_in_the_database_principals(group_name, SessionLocal) > 0:                                   # Check if the group exists in database_principals before adding it
+        db = SessionLocal()                                                                                        # Initialize session
+        try:                                                                                                       # Try to add the user to the sql_logins
+            db.execute(text(f"DROP USER {quoted_name(group_name, False)}"))                                        # Execute the query                         
+            db.commit()                                                                                            # Commit to database  
+            return 0                                                                                               # return 0 if the query as been succesfull
+        except Exception as e:
+            db.close()                                                                                             # Close the database connection i case of error
+            print(f"ERROR {e}")                                                                                    # Print the error
+            return 1                                                                                               # return 1 if the query as not been succesfull
+    else:
+        return 1
+
 def main():                                                                                                        # Entrypoint function
     session = connect_to_database(SERVER, DATABASE)                                                                # Initialize database session
     add_group_to_sql_logins("ADSQLGroup4", session)                                                                # Add the group to sql_logins
