@@ -7,7 +7,7 @@ from sqlalchemy.sql import text, quoted_name
 from pydantic       import BaseModel
 from typing         import List
 
-app      = FastAPI()                                                                                               # FastAPI App
+app = FastAPI()                                                                                               # FastAPI App
 
 class GroupShema(BaseModel):
     MemberPrincipalName: str
@@ -114,16 +114,16 @@ def get_group_from_database(group_name: str, server: str, database: str, Session
     return result.all()
 
 # Adding group the the sql_logins
-def add_group_to_sql_logins(group_name: str, SessionLocal: Session):                                               # Check if the group exists in sql_logins before adding it
-    db = SessionLocal()                                                                                            # Initialize session
-    try:                                                                                                           # Try to add the user to the sql_logins
-        db.execute(text(f"CREATE LOGIN {quoted_name(group_name, False)} WITH PASSWORD = '{group_name}'"))          # Execute the query                       
-        db.commit()                                                                                                # Commit to database
-        return 0                                                                                                   # return 0 if the query as been succesfull
-    except Exception as e:
-        db.close()                                                                                                 # Close the database connection i case of error
-        print(f"ERROR {e}")                                                                                        # Print the error
-        return 1                                                                                                   # return 1 if the query as not been succesfull
+#def add_group_to_sql_logins(group_name: str, SessionLocal: Session):                                              # Check if the group exists in sql_logins before adding it
+#    db = SessionLocal()                                                                                           # Initialize session
+#    try:                                                                                                          # Try to add the user to the sql_logins
+#        db.execute(text(f"CREATE LOGIN {quoted_name(group_name, False)} WITH PASSWORD = '{group_name}'"))         # Execute the query                       
+#        db.commit()                                                                                               # Commit to database
+#        return 0                                                                                                  # return 0 if the query as been succesfull
+#    except Exception as e:
+#        db.close()                                                                                                # Close the database connection i case of error
+#        print(f"ERROR {e}")                                                                                       # Print the error
+#        return 1                                                                                                  # return 1 if the query as not been succesfull
 
 # Adding group the the database_principals
 # TODO: CREATE USER GROUPNAME FROM EXTERNAL PROVIDER
@@ -166,12 +166,11 @@ def delete_role_from_group(group_name: str, role_name: str, SessionLocal: Sessio
         return 1
 
 # Adding group the the database_principals
-# TODO: DELETE USER GROUPNAME FROM EXTERNAL PROVIDER
 def delete_group_from_database_principals(group_name: str, SessionLocal: Session):           
     if is_group_exists_in_the_database_principals(group_name, SessionLocal) > 0:                                   # Check if the group exists in database_principals before adding it
         db = SessionLocal()                                                                                        # Initialize session
         try:                                                                                                       # Try to add the user to the sql_logins
-            db.execute(text(f"DROP USER {quoted_name(group_name, False)}"))                                        # Execute the query                         
+            db.execute(text(f"DROP USER {quoted_name(group_name, False)} FROM EXTERNAL PROVIDER"))                 # Execute the query                         
             db.commit()                                                                                            # Commit to database
             return 0                                                                                               # return 0 if the query as been succesfull
         except Exception as e:
@@ -181,11 +180,14 @@ def delete_group_from_database_principals(group_name: str, SessionLocal: Session
     else:
         return 1
 
-
-def add_group_and_attribute_role(group_name: str, role_name: str, SessionLocal: Session):
-    if is_group_exists_in_sql_logins(group_name, SessionLocal) <= 0:              add_group_to_sql_logins(group_name, SessionLocal)
-    if is_group_exists_in_the_database_principals(group_name, SessionLocal) <= 0: add_group_to_database_principals(group_name, SessionLocal)
-    if is_role_attributed(group_name, role_name, SessionLocal) <= 0:              add_role_to_group(group_name, role_name, SessionLocal)
+def add_group_and_attribute_role(group_name: str, role_name: str, server: str, database: str, SessionLocal: Session):
+    try:
+        if is_group_exists_in_sql_logins(group_name, SessionLocal) <= 0:
+            if is_group_exists_in_the_database_principals(group_name, SessionLocal) <= 0: add_group_to_database_principals(group_name, SessionLocal)
+            if is_role_attributed(group_name, role_name, SessionLocal)              <= 0: add_role_to_group(group_name, role_name, SessionLocal)
+        return { "MemberPrincipalName": group_name, "RolePrincipalName": role_name, "Server": server, "Database": database}
+    except Exception as e:
+        return e
 
 ## Routes
 @app.get("/server/{server}/database/{database}/group/{group_name}", response_model=List[GroupShema])
@@ -201,7 +203,7 @@ def update_group(server: str, database:str, group_name: str):
 @app.post("/server/{server}/database/{database}/group/{group_name}")
 def create_group(server: str, database:str, group_name: str, role_name: str):
     session = connect_to_database(server, database)                                                               # Initialize database session
-    add_group_and_attribute_role(group_name, role_name, session)                                                  # Add the group to database and attribute role
+    return add_group_and_attribute_role(group_name, server, database, session)                                    # Add the group to database and attribute role
 
 @app.delete("/server/{server}/database/{database}/group/{group_name}")
 def delete_group(server: str, database:str, group_name: str):
