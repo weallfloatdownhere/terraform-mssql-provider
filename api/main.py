@@ -181,6 +181,7 @@ def delete_group_from_database_principals(group_name: str, SessionLocal: Session
     else:
         return 1
 
+
 def add_group_and_attribute_role(group_name: str, role_name: str, SessionLocal: Session):
     if is_group_exists_in_sql_logins(group_name, SessionLocal) <= 0:              add_group_to_sql_logins(group_name, SessionLocal)
     if is_group_exists_in_the_database_principals(group_name, SessionLocal) <= 0: add_group_to_database_principals(group_name, SessionLocal)
