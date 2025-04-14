@@ -163,7 +163,7 @@ def delete_role_from_group(group_name: str, role_name: str, SessionLocal: Sessio
             print(f"ERROR {e}")                                                                                    # Print the error
             return 1                                                                                               # return 1 if the query as not been succesfull
     else:
-        return 1
+        return "ALREADY EXISTS"
 
 # Adding group the the database_principals
 def delete_group_from_database_principals(group_name: str, SessionLocal: Session):           
@@ -178,14 +178,16 @@ def delete_group_from_database_principals(group_name: str, SessionLocal: Session
             print(f"ERROR {e}")                                                                                    # Print the error
             return 1                                                                                               # return 1 if the query as not been succesfull
     else:
-        return 1
+        return "ALREADY EXISTS"
 
 def add_group_and_attribute_role(group_name: str, role_name: str, server: str, database: str, SessionLocal: Session):
     try:
         if is_group_exists_in_sql_logins(group_name, SessionLocal) <= 0:
             if is_group_exists_in_the_database_principals(group_name, SessionLocal) <= 0: add_group_to_database_principals(group_name, SessionLocal)
             if is_role_attributed(group_name, role_name, SessionLocal)              <= 0: add_role_to_group(group_name, role_name, SessionLocal)
-        return { "MemberPrincipalName": group_name, "RolePrincipalName": role_name, "Server": server, "Database": database}
+            return { "MemberPrincipalName": group_name, "RolePrincipalName": role_name, "Server": server, "Database": database}
+        else:
+            return "ALREADY EXISTS"
     except Exception as e:
         return e
 
